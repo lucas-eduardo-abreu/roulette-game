@@ -4,6 +4,10 @@ const POINTER_OFFSET = -Math.PI / 2;
 const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 const norm = x => ((x % TAU) + TAU) % TAU;
 
+// mínimo de voltas completas antes de parar
+const MIN_TURNS = 10;  // no mínimo 10 voltas
+const MAX_TURNS = 13;  // e no máximo 13 (aleatoriza um pouco)
+
 const LS_SEGMENTS = "roleta_segments_v3";
 const LS_SEGMENTS_BASE = "roleta_segments_base_v3";
 const LS_SETTINGS = "roleta_settings_v3";
@@ -232,42 +236,71 @@ function updateConfetti(){
 }
 function confettiLoop(){ if(!confettiRunning) return; updateConfetti(); drawConfetti(); requestAnimationFrame(confettiLoop); }
 
-/********** Giro **********/
+/********** Giro (mín. 10 voltas) **********/
 function spinToIndex(targetIndex){
   if (spinning || segments.length===0 || targetIndex<0) return;
-  spinning=true; btnGirar.disabled=true; resultadoBox.hidden=true;
-  highlightIndex=null; lastTickIndex=null;
+  spinning = true; 
+  btnGirar.disabled = true; 
+  resultadoBox.hidden = true;
+  highlightIndex = null; 
+  lastTickIndex = null;
 
-  const n=segments.length, slice=TAU/n;
-  const targetMid = targetIndex*slice + slice/2;
+  const n = segments.length;
+  const slice = TAU / n;
+
+  // centro da fatia que vai parar no ponteiro (topo)
+  const targetMid = targetIndex * slice + slice / 2;
+
+  // ângulo atual normalizado
   const a0 = norm(currentAngle);
-  const extraTurns = 5 + Math.floor(Math.random()*4); // 5..8
-  const desiredFinal = norm(POINTER_OFFSET - targetMid + extraTurns*TAU);
-  let delta = desiredFinal - a0; if (delta < 0) delta += TAU;
-  const duration = 4200 + Math.random()*1800; // 4.2–6.0s
+
+  // pelo menos MIN_TURNS voltas (até MAX_TURNS)
+  const extraTurns = MIN_TURNS + Math.floor(Math.random() * (MAX_TURNS - MIN_TURNS + 1));
+
+  // ângulo final desejado (alinha targetMid ao ponteiro)
+  const desiredFinal = norm(POINTER_OFFSET - targetMid + extraTurns * TAU);
+
+  // delta positivo até o alvo
+  let delta = desiredFinal - a0;
+  if (delta < 0) delta += TAU;
+
+  // duração escala com o nº de voltas
+  const baseMs = 3500;
+  const perTurnMs = 450;
+  const jitter = Math.floor(Math.random() * 400);
+  const duration = baseMs + perTurnMs * extraTurns + jitter;
+
   const start = performance.now();
 
   function frame(now){
-    const t = Math.min(1,(now-start)/duration);
+    const t = Math.min(1, (now - start) / duration);
     const eased = easeOutCubic(t);
-    const angle = a0 + delta*eased;
+    const angle = a0 + delta * eased;
 
+    // tick por fatia atravessada
     const idx = indexAtPointer(angle);
-    if (lastTickIndex===null) lastTickIndex=idx;
-    if (idx!==lastTickIndex){ playTick(); lastTickIndex=idx; }
+    if (lastTickIndex === null) lastTickIndex = idx;
+    if (idx !== lastTickIndex) { playTick(); lastTickIndex = idx; }
 
-    currentAngle = angle; drawWheel(currentAngle, null);
+    currentAngle = angle;
+    drawWheel(currentAngle, null);
 
-    if (t<1){ requestAnimationFrame(frame); }
-    else{
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      // SNAP: meio da fatia exatamente no ponteiro (topo)
       currentAngle = POINTER_OFFSET - targetMid;
       drawWheel(currentAngle, targetIndex);
-      spinning=false; btnGirar.disabled=false;
+
+      spinning = false;
+      btnGirar.disabled = false;
       announceResult(targetIndex);
     }
   }
+
   requestAnimationFrame(frame);
 }
+
 function announceResult(index){
   const seg = segments[index];
   if (typeof seg.stock === "number" && seg.stock > 0) seg.stock -= 1;
@@ -377,7 +410,6 @@ function renderHistorico(){
 function showSetup(){ screenSetup.classList.remove("hidden"); screenPlay.classList.add("hidden"); }
 function showPlay(){
   screenPlay.classList.remove("hidden"); screenSetup.classList.add("hidden");
-  // garantir canvas confete
   confettiCanvas.width = canvas.width; confettiCanvas.height = canvas.height;
   loadImages().then(()=> drawWheel(currentAngle));
 }
@@ -453,18 +485,31 @@ document.addEventListener("keydown", (ev)=>{
 
 /********** Inicialização **********/
 function boot(){
-  loadAll();
+  // carregar estado
+  try {
+    const seg = JSON.parse(localStorage.getItem(LS_SEGMENTS) || "null");
+    const base = JSON.parse(localStorage.getItem(LS_SEGMENTS_BASE) || "null");
+    const set = JSON.parse(localStorage.getItem(LS_SETTINGS) || "null");
+    const log = JSON.parse(localStorage.getItem(LS_LOG) || "null");
+    if (Array.isArray(seg)) segments = seg;
+    if (Array.isArray(base)) baseSegments = base;
+    if (set && typeof set === "object") {
+      chkSkipDepleted.checked = !!set.skipDepleted;
+      chkRemoveOnZero.checked = !!set.removeOnZero;
+    }
+    if (Array.isArray(log)) winnersLog = log;
+  } catch {}
 
-  // se primeira vez, carrega defaults
+  // defaults na primeira vez
   if (!segments.length){
-    segments = DEFAULT_SEGMENTS.map(s=>({...s}));
-    baseSegments = DEFAULT_SEGMENTS.map(s=>({...s}));
+    segments    = DEFAULT_SEGMENTS.map(s=>({...s}));
+    baseSegments= DEFAULT_SEGMENTS.map(s=>({...s}));
   }
 
   renderEstoque();
   renderHistorico();
 
   const onboarded = localStorage.getItem(LS_ONBOARDED) === "1";
-  if (onboarded) { showPlay(); } else { showSetup(); }
+  if (onboarded) showPlay(); else showSetup();
 }
 boot();
