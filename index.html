@@ -1,98 +1,141 @@
-<!doctype html>
-<html lang="pt-br">
+<!DOCTYPE html>
+<html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Jogo da Memória — Totem</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Roleta de Prêmios — Cadastro & Jogo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main id="app" aria-live="polite">
-    <!-- TELA DE LOADING / PRELOAD -->
-    <section id="screen-loading" class="screen" aria-label="Carregando">
-      <div class="panel">
-        <h2>Carregando assets…</h2>
-        <div class="loader-wrap">
-          <div id="loader-bar" class="loader-bar" style="width:0%"></div>
-        </div>
-        <p id="loader-text" class="subtitle">0%</p>
-        <button id="btn-skip-loading" class="btn btn-outline" hidden>Pular</button>
-      </div>
-    </section>
-
-    <!-- TELA INICIAL -->
-    <section id="screen-start" class="screen screen--active" aria-label="Menu inicial">
-      <div class="panel">
-        <h1>Jogo da Memória</h1>
-        <p class="subtitle">Clique para começar</p>
-        <button id="btn-start" class="btn btn-primary btn-xl">Iniciar</button>
-      </div>
-    </section>
-
-    <!-- SELEÇÃO DE DIFICULDADE -->
-    <section id="screen-select" class="screen" aria-label="Seleção de dificuldade">
-      <div class="panel">
-        <h2>Escolha a dificuldade</h2>
-        <div class="difficulty-grid">
-          <button class="btn btn-secondary btn-lg" data-diff="easy">Fácil<br><small>5 duplas</small></button>
-          <button class="btn btn-secondary btn-lg" data-diff="medium">Médio<br><small>10 duplas</small></button>
-          <button class="btn btn-secondary btn-lg" data-diff="hard">Difícil<br><small>20 duplas</small></button>
-        </div>
-        <button id="btn-back-start" class="btn btn-ghost">Voltar</button>
-      </div>
-    </section>
-
-    <!-- JOGO -->
-    <section id="screen-game" class="screen" aria-label="Tabuleiro do jogo">
-      <header class="topbar" role="toolbar" aria-label="Painel do jogo">
-        <div class="left">
-          <button id="btn-exit" class="btn btn-ghost" aria-label="Voltar ao menu">← Menu</button>
-        </div>
-        <div class="center">
-          <span id="hud-difficulty" class="badge" aria-live="polite">—</span>
-          <span class="dot">•</span>
-          <span id="hud-pairs" class="badge" aria-live="polite">0/0</span>
-          <span class="dot">•</span>
-          <span id="hud-moves" class="badge" aria-live="polite">Movimentos: 0</span>
-          <span class="dot">•</span>
-          <span id="hud-time" class="badge" aria-live="polite">00:00</span>
-          <span class="dot">•</span>
-          <span id="hud-best" class="badge" aria-live="polite" title="Seu recorde">Recorde —</span>
-        </div>
-        <div class="right">
-          <button id="btn-hint" class="btn btn-outline" aria-label="Mostrar dica (1x)">Dica (1)</button>
-          <button id="btn-pause" class="btn btn-outline" aria-pressed="false" aria-label="Pausar">Pausar</button>
-          <button id="btn-mute" class="btn btn-outline" aria-pressed="false" aria-label="Ativar/Desativar som">🔊</button>
-          <button id="btn-restart" class="btn btn-outline" aria-label="Recomeçar">Recomeçar</button>
-        </div>
+  <div class="app" id="app">
+    <!-- ============== TELA 1: SETUP / ESTOQUE ============== -->
+    <section id="screen-setup" class="screen">
+      <header class="header">
+        <h1>🎁 Roleta de Prêmios — Cadastro & Estoque</h1>
       </header>
 
-      <!-- OVERLAY DE PAUSA -->
-      <div id="pause-overlay" class="overlay" hidden role="dialog" aria-label="Jogo pausado">
-        <div class="overlay-content">
-          ⏸ Pausado
-          <div style="margin-top:20px;">
-            <button id="btn-resume" class="btn btn-primary">Retomar</button>
+      <main class="setup-grid container">
+        <section class="panel">
+          <h2>Pré-cadastro</h2>
+          <form id="formPrize" class="card">
+            <input type="hidden" id="prizeIndex" value="" />
+            <div class="row">
+              <label>Nome</label>
+              <input id="label" placeholder="Ex.: Camiseta" required />
+            </div>
+            <div class="row two">
+              <div>
+                <label>Cor</label>
+                <input id="color" type="color" value="#f59e0b" />
+              </div>
+              <div>
+                <label>Peso</label>
+                <input id="weight" type="number" step="0.1" min="0" value="1" />
+              </div>
+            </div>
+            <div class="row">
+              <label>Imagem (URL / caminho)</label>
+              <input id="imgSrc" placeholder="assets/camisa.png" />
+            </div>
+            <div class="row">
+              <label>Estoque (quantidade)</label>
+              <input id="stock" type="number" min="0" value="5" />
+            </div>
+            <div class="actions">
+              <button type="submit" id="btnAdd">Adicionar</button>
+              <button type="button" id="btnUpdate" class="secondary" disabled>Atualizar</button>
+              <button type="button" id="btnClear" class="ghost">Limpar</button>
+            </div>
+          </form>
+
+          <div class="toolbar">
+            <label class="chk">
+              <input type="checkbox" id="chkSkipDepleted" checked />
+              Pular prêmios esgotados
+            </label>
+            <label class="chk">
+              <input type="checkbox" id="chkRemoveOnZero" />
+              Remover ao zerar
+            </label>
+          </div>
+
+          <div class="toolbar">
+            <button id="btnResetEstoque" class="ghost">Repor estoque inicial</button>
+            <button id="btnResetTudo" class="danger">Limpar tudo</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Itens cadastrados</h2>
+          <div class="table-wrap">
+            <table id="tblEstoque">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Prêmio</th>
+                  <th>Estoque</th>
+                  <th>Peso</th>
+                  <th>Cor</th>
+                  <th>Imagem</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <small class="hint">✎ edita — 🗑 remove do pool.</small>
+          </div>
+
+          <div class="start-wrap">
+            <button id="btnStart" class="xl">Começar</button>
+            <small class="hint">Atalho: F2 alterna entre telas durante o uso.</small>
+          </div>
+        </section>
+      </main>
+    </section>
+
+    <!-- ============== TELA 2: PLAY / ROLETA LIMPA ============== -->
+    <section id="screen-play" class="screen hidden">
+      <header class="header clean">
+        <h1>🎁 Roleta de Prêmios</h1>
+      </header>
+
+      <main class="play-wrap container">
+        <div class="wheel-wrap">
+          <canvas id="roleta" width="520" height="520" aria-label="Roleta de prêmios"></canvas>
+          <canvas id="confetti" width="520" height="520" aria-hidden="true"></canvas>
+          <div class="pointer" aria-hidden="true">▼</div>
+        </div>
+
+        <div class="controls play-controls">
+          <button id="girar">Girar</button>
+          <button id="btnFullscreen">Tela cheia</button>
+        </div>
+
+        <div id="resultado" class="resultado" hidden>
+          <img id="resultado-img" alt="" />
+          <div class="resultado-textos">
+            <strong id="resultado-label"></strong>
+            <small id="resultado-msg"></small>
+            <small id="resultado-stock"></small>
           </div>
         </div>
-      </div>
-      <div id="board" class="board" role="grid" aria-label="Cartas do tabuleiro"></div>
-    </section>
 
-    <!-- FIM DE PARTIDA -->
-    <section id="screen-win" class="screen" aria-label="Fim de partida">
-      <div class="panel">
-        <h2>Parabéns! 🎉</h2>
-        <p id="win-stats" class="subtitle"></p>
-        <p id="win-best" class="subtitle"></p>
-        <div class="actions">
-          <button id="btn-play-again" class="btn btn-primary">Jogar novamente</button>
-          <button id="btn-go-menu" class="btn btn-ghost">Voltar ao menu</button>
+        <details class="history">
+          <summary>Histórico (últimos 10)</summary>
+          <ul id="historico"></ul>
+        </details>
+
+        <div class="tiny-hints">
+          <small>Atalhos: <b>F2</b> voltar ao cadastro • <b>E</b> exportar CSV</small>
         </div>
-      </div>
+      </main>
     </section>
-  </main>
+  </div>
 
-  <script type="module" src="game.js"></script>
+  <!-- Áudios -->
+  <audio id="sfxTick" src="assets/tick.mp3" preload="auto"></audio>
+  <audio id="sfxWin"  src="assets/win.mp3"  preload="auto"></audio>
+
+  <script src="script.js"></script>
 </body>
 </html>
