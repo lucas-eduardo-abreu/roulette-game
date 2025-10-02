@@ -20,7 +20,7 @@ let baseSegments = [];
 let winnersLog = [];
 let images = new Map();
 
-let currentAngle = 0;
+let currentAngle = 0;       // IMPORTANTE: mantemos este valor acumulado (não normalizado)
 let spinning = false;
 let highlightIndex = null;
 let lastTickIndex = null;
@@ -236,7 +236,7 @@ function updateConfetti(){
 }
 function confettiLoop(){ if(!confettiRunning) return; updateConfetti(); drawConfetti(); requestAnimationFrame(confettiLoop); }
 
-/********** Giro (mín. 10 voltas) **********/
+/********** Giro (garante 10+ voltas reais) **********/
 function spinToIndex(targetIndex){
   if (spinning || segments.length===0 || targetIndex<0) return;
   spinning = true; 
@@ -251,24 +251,27 @@ function spinToIndex(targetIndex){
   // centro da fatia que vai parar no ponteiro (topo)
   const targetMid = targetIndex * slice + slice / 2;
 
-  // ângulo atual normalizado
-  const a0 = norm(currentAngle);
+  // Ângulo atual ABSOLUTO (não normalizado!)
+  const a0 = currentAngle;
 
-  // pelo menos MIN_TURNS voltas (até MAX_TURNS)
-  const extraTurns = MIN_TURNS + Math.floor(Math.random() * (MAX_TURNS - MIN_TURNS + 1));
+  // Escolhe um nº de voltas inteiro entre MIN_TURNS e MAX_TURNS
+  const chosenTurns = MIN_TURNS + Math.floor(Math.random() * (MAX_TURNS - MIN_TURNS + 1));
 
-  // ângulo final desejado (alinha targetMid ao ponteiro)
-  const desiredFinal = norm(POINTER_OFFSET - targetMid + extraTurns * TAU);
+  // Precisamos de um ângulo final que satisfaça:
+  // finalAngle ≡ POINTER_OFFSET - targetMid (mod TAU)
+  // e também finalAngle >= a0 + chosenTurns*TAU   (para garantir as voltas)
+  const base = POINTER_OFFSET - targetMid; // representante da classe módulo TAU
+  const k = Math.floor((a0 - base) / TAU) + chosenTurns; // mínimo k que empurra além de a0 + chosenTurns*TAU
+  const finalAngle = base + k * TAU;
 
-  // delta positivo até o alvo
-  let delta = desiredFinal - a0;
-  if (delta < 0) delta += TAU;
+  // delta total (positivo) a percorrer
+  const delta = finalAngle - a0;
 
-  // duração escala com o nº de voltas
+  // duração proporcional às voltas escolhidas
   const baseMs = 3500;
   const perTurnMs = 450;
   const jitter = Math.floor(Math.random() * 400);
-  const duration = baseMs + perTurnMs * extraTurns + jitter;
+  const duration = baseMs + perTurnMs * chosenTurns + jitter;
 
   const start = performance.now();
 
@@ -289,7 +292,7 @@ function spinToIndex(targetIndex){
       requestAnimationFrame(frame);
     } else {
       // SNAP: meio da fatia exatamente no ponteiro (topo)
-      currentAngle = POINTER_OFFSET - targetMid;
+      currentAngle = finalAngle; // já é POINTER_OFFSET - targetMid + k*TAU
       drawWheel(currentAngle, targetIndex);
 
       spinning = false;
