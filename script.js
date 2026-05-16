@@ -330,12 +330,19 @@ function announceResult(index){
 
   saveAll();
   drawWheel(currentAngle);
+  updateSpinButton();
 }
 
 /********** CSV & Fullscreen **********/
+function csvEscape(val) {
+  const s = String(val);
+  return (s.includes('"') || s.includes(',') || s.includes('\n'))
+    ? '"' + s.replace(/"/g, '""') + '"'
+    : s;
+}
 function exportCSV(){
   const header = "timestamp,label\n";
-  const rows = winnersLog.map(w => `${w.ts},${JSON.stringify(w.label)}`).join("\n");
+  const rows = winnersLog.map(w => `${w.ts},${csvEscape(w.label)}`).join("\n");
   const blob = new Blob([header + rows + "\n"], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -415,18 +422,61 @@ function showPlay(){
   screenPlay.classList.remove("hidden"); screenSetup.classList.add("hidden");
   confettiCanvas.width = canvas.width; confettiCanvas.height = canvas.height;
   loadImages().then(()=> drawWheel(currentAngle));
+  updateSpinButton();
+}
+
+/********** Validação do form **********/
+let formErrorEl = null;
+function getFormError() {
+  if (!formErrorEl) {
+    formErrorEl = document.createElement("p");
+    formErrorEl.className = "form-error";
+    form.appendChild(formErrorEl);
+  }
+  return formErrorEl;
+}
+function showFormError(msg) {
+  getFormError().textContent = msg;
+  getFormError().hidden = false;
+}
+function clearFormError() {
+  if (formErrorEl) formErrorEl.hidden = true;
+}
+function parseSegmentFromForm() {
+  const label = inputLabel.value.trim();
+  if (!label) { showFormError("O nome do prêmio não pode estar vazio."); return null; }
+
+  const weight = parseFloat(inputWeight.value);
+  if (!Number.isFinite(weight) || weight <= 0) {
+    showFormError("Peso deve ser um número maior que zero.");
+    return null;
+  }
+  const stock = parseInt(inputStock.value, 10);
+  if (!Number.isFinite(stock) || stock < 0) {
+    showFormError("Estoque deve ser um número inteiro ≥ 0.");
+    return null;
+  }
+  clearFormError();
+  return {
+    label,
+    color: inputColor.value || "#cccccc",
+    imgSrc: inputImg.value.trim(),
+    weight,
+    stock,
+  };
+}
+
+function updateSpinButton() {
+  const hasStock = segments.some(s => (s.stock ?? 0) > 0);
+  btnGirar.disabled = spinning || !hasStock;
+  btnGirar.title = hasStock ? "" : "Sem prêmios com estoque disponível.";
 }
 
 /********** Eventos — Setup **********/
 form.addEventListener("submit", (e)=>{
   e.preventDefault();
-  const s = {
-    label: inputLabel.value.trim(),
-    color: inputColor.value || "#cccccc",
-    imgSrc: inputImg.value.trim(),
-    weight: Math.max(0, parseFloat(inputWeight.value || "1")) || 1,
-    stock: Math.max(0, parseInt(inputStock.value || "0", 10)) || 0,
-  };
+  const s = parseSegmentFromForm();
+  if (!s) return;
   segments.push(s);
   baseSegments.push({...s});
   saveAll(); clearForm(); renderEstoque();
@@ -434,13 +484,10 @@ form.addEventListener("submit", (e)=>{
 btnUpd.addEventListener("click", ()=>{
   const i = inputIndex.value ? parseInt(inputIndex.value,10) : -1;
   if (i < 0 || i >= segments.length) return;
-  const s = segments[i];
-  s.label = inputLabel.value.trim();
-  s.color = inputColor.value || "#cccccc";
-  s.imgSrc = inputImg.value.trim();
-  s.weight = Math.max(0, parseFloat(inputWeight.value || "1")) || 1;
-  s.stock = Math.max(0, parseInt(inputStock.value || "0", 10)) || 0;
-  baseSegments[i] = {...s};
+  const s = parseSegmentFromForm();
+  if (!s) return;
+  Object.assign(segments[i], s);
+  baseSegments[i] = {...segments[i]};
   saveAll(); clearForm(); renderEstoque();
 });
 btnClear.addEventListener("click", clearForm);
@@ -488,20 +535,7 @@ document.addEventListener("keydown", (ev)=>{
 
 /********** Inicialização **********/
 function boot(){
-  // carregar estado
-  try {
-    const seg = JSON.parse(localStorage.getItem(LS_SEGMENTS) || "null");
-    const base = JSON.parse(localStorage.getItem(LS_SEGMENTS_BASE) || "null");
-    const set = JSON.parse(localStorage.getItem(LS_SETTINGS) || "null");
-    const log = JSON.parse(localStorage.getItem(LS_LOG) || "null");
-    if (Array.isArray(seg)) segments = seg;
-    if (Array.isArray(base)) baseSegments = base;
-    if (set && typeof set === "object") {
-      chkSkipDepleted.checked = !!set.skipDepleted;
-      chkRemoveOnZero.checked = !!set.removeOnZero;
-    }
-    if (Array.isArray(log)) winnersLog = log;
-  } catch {}
+  loadAll();
 
   // defaults na primeira vez
   if (!segments.length){

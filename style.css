@@ -86,3 +86,10 @@ td .danger { background: #3b1e28; border-color: #7f1d1d; }
 #historico li { padding: 6px 8px; border-left: 3px solid var(--border); background: #10132a; border-radius: 6px; margin-bottom: 6px; }
 
 .tiny-hints { opacity: .8; }
+
+.form-error {
+  color: var(--danger);
+  font-size: 0.8rem;
+  margin-top: 6px;
+  font-weight: 600;
+}
